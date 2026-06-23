@@ -1,0 +1,61 @@
+name: Deploy to Chef Convey
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Chef Convey
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install tools
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y jq
+
+    - name: Create deploy archive
+      run: |
+        git rev-parse --abbrev-ref HEAD
+        git archive -o deploy_archive.tar.gz HEAD
+
+    - name: Deploy to Chef Convey (trigger)
+      env:
+        CONVEY_TOKEN: ${{ secrets.CONVEY_TOKEN }}
+        CONVEY_ENV: ${{ secrets.CONVEY_ENV }}
+      run: |
+        if [ -z "$CONVEY_TOKEN" ]; then
+          echo "ERROR: CONVEY_TOKEN secret is not set. Add it in repository Settings → Secrets."
+          exit 1
+        fi
+        if [ -z "$CONVEY_ENV" ]; then
+          echo "ERROR: CONVEY_ENV secret is not set. Add it in repository Settings → Secrets."
+          exit 1
+        fi
+
+        echo "Uploading archive to Chef Convey..."
+        RESPONSE=$(curl -s -X POST "https://api.convey.sh/v1/apps/deploy" \
+          -H "Authorization: Bearer $CONVEY_TOKEN" \
+          -F "environment=$CONVEY_ENV" \
+          -F "file=@deploy_archive.tar.gz")
+
+        echo "Convey response:"
+        echo "$RESPONSE"
+
+        # Try to extract a public URL from common response fields
+        APP_URL=$(echo "$RESPONSE" | jq -r '.url // .deploy_url // .app_url // empty') || true
+        if [ -n "$APP_URL" ]; then
+          echo "Deployed app URL: $APP_URL"
+        else
+          echo "No public URL found in Convey response. Check Convey dashboard for the deployed URL." 
+        fi
