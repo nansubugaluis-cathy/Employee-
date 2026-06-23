@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="reports-container">
+    <h1>Training Reports & Analytics</h1>
+    
+    <div class="reports-summary">
+        <h2>Quiz Statistics Summary</h2>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <h3>Total Quiz Attempts</h3>
+                <div class="summary-number">{{ total_attempts }}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Passed</h3>
+                <div class="summary-number success">{{ total_passed }}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Failed</h3>
+                <div class="summary-number danger">{{ total_failed }}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Pass Rate</h3>
+                <div class="summary-number">
+                    {% if total_attempts > 0 %}
+                        {{ "%.1f"|format((total_passed / total_attempts * 100)) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Module Completion Statistics</h2>
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Module Name</th>
+                    <th>Total Enrolled</th>
+                    <th>Completed</th>
+                    <th>Not Completed</th>
+                    <th>Completion Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in module_stats %}
+                <tr>
+                    <td>{{ stat.module.title }}</td>
+                    <td>{{ stat.total_enrolled }}</td>
+                    <td class="success">{{ stat.completed }}</td>
+                    <td class="danger">{{ stat.total_enrolled - stat.completed }}</td>
+                    <td>{{ "%.1f"|format(stat.completion_rate) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Detailed Quiz Report</h2>
+        <button id="exportBtn" class="btn btn-secondary">Export as CSV</button>
+        <div id="quizReportContainer"></div>
+    </div>
+</div>
+
+<script>
+    // Load detailed quiz report
+    async function loadQuizReport() {
+        try {
+            const response = await fetch('/api/admin/quiz-report');
+            const data = await response.json();
+            
+            const container = document.getElementById('quizReportContainer');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="no-data">No quiz attempts yet.</p>';
+                return;
+            }
+            
+            let html = '<table class="report-table"><thead><tr>';
+            html += '<th>Employee</th><th>Email</th><th>Quiz</th><th>Attempted At</th>';
+            html += '<th>Score</th><th>Status</th><th>Required</th></tr></thead><tbody>';
+            
+            data.forEach(attempt => {
+                const statusBadge = attempt.passed ? 
+                    '<span class="badge badge-success">PASSED</span>' : 
+                    '<span class="badge badge-danger">FAILED</span>';
+                
+                html += `<tr>
+                    <td>${attempt.employee_name}</td>
+                    <td>${attempt.employee_email}</td>
+                    <td>${attempt.quiz_title}</td>
+                    <td>${attempt.attempted_at}</td>
+                    <td>${attempt.score.toFixed(2)}%</td>
+                    <td>${statusBadge}</td>
+                    <td>${attempt.required_score}%</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+            
+            // Store for export
+            window.quizReportData = data;
+        } catch (error) {
+            console.error('Error loading report:', error);
+        }
+    }
+    
+    // Export as CSV
+    document.getElementById('exportBtn').addEventListener('click', () => {
+        if (!window.quizReportData) {
+            alert('No data to export');
+            return;
+        }
+        
+        let csv = 'Employee,Email,Quiz,Attempted At,Score,Status,Required Score\n';
+        window.quizReportData.forEach(attempt => {
+            const status = attempt.passed ? 'PASSED' : 'FAILED';
+            csv += `"${attempt.employee_name}","${attempt.employee_email}","${attempt.quiz_title}","${attempt.attempted_at}","${attempt.score.toFixed(2)}","${status}","${attempt.required_score}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quiz_report_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+    
+    // Load report on page load
+    loadQuizReport();
+</script>
+{% endblock %}

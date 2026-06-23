@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="quiz-container">
+    <div class="quiz-header">
+        <h1>{{ quiz.title }}</h1>
+        <p>Passing Score: {{ quiz.passing_score }}%</p>
+    </div>
+    
+    <form id="quizForm" class="quiz-form">
+        {% for question in quiz.questions %}
+        <div class="question-block">
+            <h3 class="question-number">Question {{ loop.index }} of {{ quiz.questions|length }}</h3>
+            <p class="question-text">{{ question.question_text }}</p>
+            
+            {% if question.question_type == 'multiple_choice' %}
+                {% set options = question.options|safe %}
+                <div class="options">
+                    {% for option in options.split('|') if option %}
+                    <label class="option-label">
+                        <input type="radio" name="question_{{ question.id }}" value="{{ option }}" required>
+                        <span>{{ option }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            {% elif question.question_type == 'true_false' %}
+                <div class="options">
+                    <label class="option-label">
+                        <input type="radio" name="question_{{ question.id }}" value="True" required>
+                        <span>True</span>
+                    </label>
+                    <label class="option-label">
+                        <input type="radio" name="question_{{ question.id }}" value="False" required>
+                        <span>False</span>
+                    </label>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        <div class="quiz-actions">
+            <button type="submit" class="btn btn-primary btn-lg">Submit Quiz</button>
+            <a href="{{ url_for('employee_dashboard') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+    
+    <div id="resultContainer" style="display: none;" class="result-container">
+        <h2 id="resultTitle"></h2>
+        <div class="result-details">
+            <p><strong>Your Score:</strong> <span id="scoreValue"></span>%</p>
+            <p><strong>Correct Answers:</strong> <span id="correctValue"></span> / <span id="totalValue"></span></p>
+            <p><strong>Passing Score:</strong> <span id="requiredValue"></span>%</p>
+        </div>
+        
+        <div id="certificateInfo"></div>
+        
+        <a href="{{ url_for('employee_dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+
+<script>
+    document.getElementById('quizForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Collect answers
+        const answers = {};
+        const questions = document.querySelectorAll('.question-block');
+        
+        questions.forEach(q => {
+            const inputs = q.querySelectorAll('input[type="radio"]:checked');
+            const question = q.querySelector('.question-number').textContent;
+            const questionId = Object.keys(inputs[0].attributes).filter(k => 
+                inputs[0].attributes[k].nodeName === 'name'
+            )[0];
+            
+            if (inputs.length > 0) {
+                const questionNum = questionId.replace('question_', '');
+                answers[questionNum] = inputs[0].value;
+            }
+        });
+        
+        // Submit quiz
+        try {
+            const response = await fetch('/api/quiz/{{ quiz.id }}/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({answers: answers})
+            });
+            
+            const result = await response.json();
+            
+            // Show result
+            document.getElementById('quizForm').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'block';
+            
+            if (result.passed) {
+                document.getElementById('resultTitle').innerHTML = '✓ <span class="success">Quiz Passed!</span>';
+                document.getElementById('certificateInfo').innerHTML = 
+                    '<p class="certificate-message">A certificate has been generated for you. Go to your dashboard to view it.</p>';
+            } else {
+                document.getElementById('resultTitle').innerHTML = '✗ <span class="danger">Quiz Failed</span>';
+                document.getElementById('certificateInfo').innerHTML = 
+                    '<p class="fail-message">You can retake this quiz.</p>';
+            }
+            
+            document.getElementById('scoreValue').textContent = result.score.toFixed(2);
+            document.getElementById('correctValue').textContent = result.correct_answers;
+            document.getElementById('totalValue').textContent = result.total_questions;
+            document.getElementById('requiredValue').textContent = result.required_score;
+        } catch (error) {
+            alert('Error submitting quiz: ' + error);
+        }
+    });
+</script>
+
+<style>
+    .question-block {
+        background: #f9f9f9;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .question-number {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .question-text {
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    
+    .options {
+        margin: 15px 0;
+    }
+    
+    .option-label {
+        display: block;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+    
+    .option-label:hover {
+        background: #f0f0f0;
+    }
+    
+    .result-container {
+        background: #f0f7ff;
+        padding: 30px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 20px;
+    }
+    
+    .success {
+        color: #28a745;
+    }
+    
+    .danger {
+        color: #dc3545;
+    }
+    
+    .certificate-message {
+        background: #d4edda;
+        color: #155724;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}

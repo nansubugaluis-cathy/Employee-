@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Employees{% endblock %}
+
+{% block content %}
+<div class="manage-container">
+    <h1>Manage Employees</h1>
+    
+    <button id="addEmployeeBtn" class="btn btn-primary">+ Add New Employee</button>
+    
+    <div id="employeeFormContainer" class="form-container" style="display: none;">
+        <h2>Add New Employee</h2>
+        <form id="employeeForm" class="employee-form">
+            <div class="form-group">
+                <label for="empFullName">Full Name:</label>
+                <input type="text" id="empFullName" name="full_name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="empUsername">Username:</label>
+                <input type="text" id="empUsername" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="empPassword">Password:</label>
+                <input type="password" id="empPassword" name="password" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="empEmail">Email:</label>
+                <input type="email" id="empEmail" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="empDepartment">Department:</label>
+                <input type="text" id="empDepartment" name="department">
+            </div>
+            
+            <button type="submit" class="btn btn-success">Add Employee</button>
+            <button type="button" id="cancelEmpBtn" class="btn btn-secondary">Cancel</button>
+        </form>
+    </div>
+
+    <div class="employees-section">
+        <h2>Employees List</h2>
+        {% if employees %}
+        <div class="employees-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Department</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td>{{ employee.full_name }}</td>
+                        <td>{{ employee.username }}</td>
+                        <td>{{ employee.email }}</td>
+                        <td>{{ employee.department or 'N/A' }}</td>
+                        <td>{{ employee.created_at.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="no-data">No employees found.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+        document.getElementById('employeeFormContainer').style.display = 'block';
+    });
+    
+    document.getElementById('cancelEmpBtn').addEventListener('click', () => {
+        document.getElementById('employeeFormContainer').style.display = 'none';
+        document.getElementById('employeeForm').reset();
+    });
+    
+    document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(document.getElementById('employeeForm'));
+        const data = {
+            full_name: formData.get('full_name'),
+            username: formData.get('username'),
+            password: formData.get('password'),
+            email: formData.get('email'),
+            department: formData.get('department')
+        };
+        
+        try {
+            const response = await fetch('/api/admin/employee', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert('Employee added successfully!');
+                window.location.reload();
+            } else {
+                alert('Error: ' + (result.error || 'Failed to add employee'));
+            }
+        } catch (error) {
+            alert('An error occurred');
+        }
+    });
+</script>
+{% endblock %}

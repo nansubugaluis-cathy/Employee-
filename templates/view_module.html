@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module.title }}{% endblock %}
+
+{% block content %}
+<div class="module-content">
+    <div class="module-header">
+        <h1>{{ module.title }}</h1>
+        <p class="module-duration">Duration: {{ module.duration_minutes }} minutes</p>
+    </div>
+    
+    <div class="module-body">
+        <h2>{{ module.description }}</h2>
+        <div class="module-text">
+            {{ module.content|safe }}
+        </div>
+    </div>
+    
+    <div class="module-actions">
+        {% if module.quiz %}
+            {% if not enrollment.is_completed %}
+            <a href="{{ url_for('take_quiz', quiz_id=module.quiz.id) }}" class="btn btn-primary btn-lg">Take Quiz</a>
+            {% else %}
+            <div class="success-message">
+                <h3>✓ Module Completed!</h3>
+                <p>You have successfully completed this module.</p>
+            </div>
+            {% endif %}
+        {% else %}
+            <p class="info-message">No quiz available for this module yet.</p>
+        {% endif %}
+        
+        <a href="{{ url_for('employee_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
+<style>
+    .module-content {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .module-body {
+        background: #f9f9f9;
+        padding: 30px;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+    
+    .success-message {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+        padding: 20px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
